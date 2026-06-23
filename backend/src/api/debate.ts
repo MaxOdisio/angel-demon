@@ -13,33 +13,28 @@ export async function handlerDebate(req: Request, res: Response) {
       return;
     }
 
-    let sunnyLast = "";
-    let crowlyLast = "";
-    const lastRound = debateData.conversationHistory.at(-1);
-    if (lastRound) {
-      sunnyLast = lastRound.sunny;
-      crowlyLast = lastRound.crowley;
-    }
+    let sunnyPrevious = debateData.conversationHistory.at(-1)?.sunny ?? "";
+    let crowleyPrevious = debateData.conversationHistory.at(-1)?.crowley ?? "";
 
-    const resCrowly = await getCrowleyResponse(debateData.dilemma, debateData.conversationHistory, sunnyLast);
-    crowlyLast = resCrowly;
-    const resSunny = await getSunnyResponse(debateData.dilemma, debateData.conversationHistory, crowlyLast);
-    sunnyLast = resSunny;
-    const resJudge = await getDebateJudgement(debateData.dilemma, sunnyLast, crowlyLast, debateData.conversationHistory, debateData.currentAlignment);
+    const resCrowley = await getCrowleyResponse(debateData.dilemma, debateData.conversationHistory, sunnyPrevious);
+    crowleyPrevious = resCrowley;
+    const resSunny = await getSunnyResponse(debateData.dilemma, debateData.conversationHistory, crowleyPrevious);
+    sunnyPrevious = resSunny;
+    const resJudge = await getDebateJudgement(debateData.dilemma, sunnyPrevious, crowleyPrevious, debateData.conversationHistory, debateData.currentAlignment);
 
     const result: DebateResponse = {
-      sunny: sunnyLast,
-      crowly: crowlyLast,
+      sunny: sunnyPrevious,
+      crowly: crowleyPrevious,
       judgement: resJudge
     }
 
-    return res.status(200).json({ message: JSON.stringify(result) });
+    return res.status(200).json(result);
   } catch (err) {
-    res.status(400).json({
-      error: "Bad Request",
+    console.error("Error during debate handling:", err);
+    res.status(500).json({
+      error: "Internal server error",
       message: "The service is temporarily unavailable. Please try again later."
     });
-    console.error("Error during debate handling:", err);
     return;
   }
 }
