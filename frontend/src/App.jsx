@@ -1,6 +1,4 @@
-import React, { useState } from 'react'
 import { useGameState } from './hooks/useGameState.js'
-import ApiKeySetup from './components/ApiKeySetup.jsx'
 import CharacterCard from './components/CharacterCard.jsx'
 import AlignmentBar from './components/AlignmentBar.jsx'
 import PromotionBoard from './components/PromotionBoard.jsx'
@@ -31,7 +29,7 @@ function Header({ onReset }) {
   )
 }
 
-function MainApp({ apiKey, onLogout }) {
+function MainApp() {
   const {
     alignment,
     alignmentLabel,
@@ -43,7 +41,7 @@ function MainApp({ apiKey, onLogout }) {
     promotionScore,
     submitDilemma,
     resetGame,
-  } = useGameState(apiKey)
+  } = useGameState()
 
   const handleReset = () => {
     resetGame()
@@ -146,23 +144,5 @@ function MainApp({ apiKey, onLogout }) {
 }
 
 export default function App() {
-  const [apiKey, setApiKey] = useState(() => {
-    try { return localStorage.getItem('openai_key') || '' } catch { return '' }
-  })
-
-  const handleKeySet = (key) => {
-    localStorage.setItem('openai_key', key)
-    setApiKey(key)
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem('openai_key')
-    setApiKey('')
-  }
-
-  if (!apiKey) {
-    return <ApiKeySetup onKeySet={handleKeySet} />
-  }
-
-  return <MainApp apiKey={apiKey} onLogout={handleLogout} />
+  return <MainApp />
 }

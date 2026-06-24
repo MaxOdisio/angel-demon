@@ -1,13 +1,10 @@
 import { useState, useCallback } from "react";
 import {
-  getSunnyResponse,
-  getCrowleyResponse,
-  getDebateJudgement,
-} from "../utils/openai.js";
-import {
   INITIAL_ALIGNMENT,
   ALIGNMENT_LABELS,
 } from "../constants/characters.js";
+import { submitDebateDilemma } from "../utils/api.js";
+import { validateDebateResponse } from "../utils/validation.js";
 
 const STORAGE_KEY = "angel_demon_state";
 
@@ -33,7 +30,7 @@ function saveState(state) {
   }
 }
 
-export function useGameState(apiKey) {
+export function useGameState() {
   const saved = loadState();
 
   const [alignment, setAlignment] = useState(
@@ -66,31 +63,11 @@ export function useGameState(apiKey) {
       setError(null);
 
       try {
-        // Step 1: Crowley goes first (demons are eager)
-        const crowleyResponse = await getCrowleyResponse(
-          apiKey,
-          dilemma,
-          conversationHistory,
-          null,
-        );
-
-        // Step 2: Sunny responds, aware of Crowley's argument
-        const sunnyResponse = await getSunnyResponse(
-          apiKey,
-          dilemma,
-          conversationHistory,
-          crowleyResponse,
-        );
-
-        // Step 3: Get cosmic judgement
-        const judgement = await getDebateJudgement(
-          apiKey,
-          dilemma,
-          sunnyResponse,
-          crowleyResponse,
-          conversationHistory,
-          alignment,
-        );
+        const debateResponse = await submitDebateDilemma(dilemma);
+        if (!validateDebateResponse(debateResponse)) {
+          throw new Error("Invalid response format from server");
+        }
+        const { sunny, crowley, judgement } = debateResponse;
 
         // Calculate new alignment
         const newAlignment = clamp(
@@ -143,14 +120,7 @@ export function useGameState(apiKey) {
         setIsLoading(false);
       }
     },
-    [
-      apiKey,
-      alignment,
-      conversationHistory,
-      promotionScore,
-      totalRounds,
-      isLoading,
-    ],
+    [alignment, conversationHistory, promotionScore, totalRounds, isLoading],
   );
 
   const resetGame = useCallback(() => {
