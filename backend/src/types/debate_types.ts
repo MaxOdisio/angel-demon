@@ -29,3 +29,8 @@ export type DebateResponse = {
   crowly: string,
   judgement: JudgeResponse
 };
+
+export type Message = {
+  role: string,
+  content: string
+};

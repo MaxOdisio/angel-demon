@@ -4,12 +4,7 @@ import {
   DEBATE_JUDGE_PROMPT,
 } from "../constants/characters.js";
 import { OPENAI_API_KEY } from "../constants/env.js";
-import { JudgeResponse, Round } from "../types/debate_types.js";
-
-type Message = {
-  role: string,
-  content: string
-};
+import { JudgeResponse, Message, Round } from "../types/debate_types.js";
 
 const openAIClient = {
   baseURL: "https://api.openai.com/v1/chat/completions",
@@ -105,6 +100,7 @@ export async function getSunnyResponse(
   return chatCompletion(SUNNY_SYSTEM_PROMPT, messages);
 }
 
+// NOTE: at this moment Sunny never has a message to pass as argument because Crowley always speaks first.
 export async function getCrowleyResponse(
   dilemma: string,
   conversationHistory: Round[],
@@ -148,8 +144,9 @@ Judge this debate round.`;
     const text = judgeRaw.trim();
     const cleaned = text.replace(/```json|```/g, "").trim();
     return JSON.parse(cleaned);
-  } catch {
+  } catch (err) {
     // Fallback judgement
+    console.warn("Judge JSON parsing failed, using fallback:", err)
     return {
       roundWinner: "tie",
       winnerReason: "Both made compelling arguments.",
