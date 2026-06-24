@@ -26,7 +26,7 @@ export type UserLeaning = "heaven" | "hell" | "neutral";
 
 export type DebateResponse = {
   sunny: string,
-  crowly: string,
+  crowley: string,
   judgement: JudgeResponse
 };
 

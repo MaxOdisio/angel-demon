@@ -24,7 +24,7 @@ export async function handlerDebate(req: Request, res: Response) {
 
     const result: DebateResponse = {
       sunny: sunnyPrevious,
-      crowly: crowleyPrevious,
+      crowley: crowleyPrevious,
       judgement: resJudge
     }
 

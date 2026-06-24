@@ -31,23 +31,19 @@ function saveState(state) {
 }
 
 export function useGameState() {
-  const saved = loadState();
+  const [gameState, setGameState] = useState(() => {
+    const saved = loadState();
+    return {
+      alignment: saved?.alignment ?? INITIAL_ALIGNMENT,
+      conversationHistory: saved?.conversationHistory ?? [],
+      totalRounds: saved?.totalRounds ?? 0,
+      promotionScore: saved?.promotionScore ?? { sunny: 0, crowley: 0 }, // Promotion scores: total souls won per character
+    };
+  });
 
-  const [alignment, setAlignment] = useState(
-    saved?.alignment ?? INITIAL_ALIGNMENT,
-  );
-  const [conversationHistory, setConversationHistory] = useState(
-    saved?.conversationHistory ?? [],
-  );
   const [currentRound, setCurrentRound] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [totalRounds, setTotalRounds] = useState(saved?.totalRounds ?? 0);
-
-  // Promotion scores: total souls won per character
-  const [promotionScore, setPromotionScore] = useState(
-    saved?.promotionScore ?? { sunny: 0, crowley: 0 },
-  );
 
   const getAlignmentLabel = useCallback((score) => {
     return (
@@ -58,26 +54,39 @@ export function useGameState() {
 
   const submitDilemma = useCallback(
     async (dilemma) => {
-      if (!dilemma.trim() || isLoading) return;
+      if (!dilemma.trim() || isLoading) return null;
+
       setIsLoading(true);
       setError(null);
 
       try {
-        const debateResponse = await submitDebateDilemma(dilemma);
+        const payload = {
+          dilemma,
+          conversationHistory: gameState.conversationHistory,
+          currentAlignment: gameState.alignment,
+        };
+
+        // Call to server endpoint
+        const debateResponse = await submitDebateDilemma(payload);
+
         if (!validateDebateResponse(debateResponse)) {
           throw new Error("Invalid response format from server");
         }
+
         const { sunny, crowley, judgement } = debateResponse;
+
+        const roundId = Date.now();
+        const timestamp = new Date().toISOString();
 
         // Calculate new alignment
         const newAlignment = clamp(
-          alignment + (judgement.alignmentDelta || 0),
+          gameState.alignment + (judgement.alignmentDelta || 0),
           -100,
           100,
         );
 
         // Update promotion scores based on round winner
-        const newPromotionScore = { ...promotionScore };
+        const newPromotionScore = { ...gameState.promotionScore };
         if (judgement.roundWinner === "sunny") {
           newPromotionScore.sunny += 1;
         } else if (judgement.roundWinner === "crowley") {
@@ -85,33 +94,29 @@ export function useGameState() {
         }
 
         const round = {
-          id: Date.now(),
+          id: roundId,
           dilemma,
-          sunny: sunnyResponse,
-          crowley: crowleyResponse,
+          sunny,
+          crowley,
           judgement,
-          alignmentBefore: alignment,
+          alignmentBefore: gameState.alignment,
           alignmentAfter: newAlignment,
-          timestamp: new Date().toISOString(),
+          timestamp,
         };
 
-        const newHistory = [...conversationHistory, round];
-        const newTotalRounds = totalRounds + 1;
+        const newHistory = [...gameState.conversationHistory, round];
+        const newTotalRounds = gameState.totalRounds + 1;
 
-        setCurrentRound(round);
-        setConversationHistory(newHistory);
-        setAlignment(newAlignment);
-        setPromotionScore(newPromotionScore);
-        setTotalRounds(newTotalRounds);
-
-        // Persist state
-        saveState({
+        const updatedState = {
           alignment: newAlignment,
           conversationHistory: newHistory,
-          promotionScore: newPromotionScore,
           totalRounds: newTotalRounds,
-        });
+          promotionScore: newPromotionScore,
+        };
 
+        saveState(updatedState);
+        setGameState(updatedState);
+        setCurrentRound(round);
         return round;
       } catch (err) {
         setError(err.message);
@@ -120,28 +125,30 @@ export function useGameState() {
         setIsLoading(false);
       }
     },
-    [alignment, conversationHistory, promotionScore, totalRounds, isLoading],
+    [isLoading, gameState],
   );
 
   const resetGame = useCallback(() => {
-    setAlignment(INITIAL_ALIGNMENT);
-    setConversationHistory([]);
+    setGameState({
+      alignment: INITIAL_ALIGNMENT,
+      conversationHistory: [],
+      totalRounds: 0,
+      promotionScore: { sunny: 0, crowley: 0 },
+    });
     setCurrentRound(null);
-    setPromotionScore({ sunny: 0, crowley: 0 });
-    setTotalRounds(0);
     setError(null);
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
   return {
-    alignment,
-    alignmentLabel: getAlignmentLabel(alignment),
-    conversationHistory,
+    alignment: gameState.alignment,
+    alignmentLabel: getAlignmentLabel(gameState.alignment),
+    conversationHistory: gameState.conversationHistory,
     currentRound,
     isLoading,
     error,
-    totalRounds,
-    promotionScore,
+    totalRounds: gameState.totalRounds,
+    promotionScore: gameState.promotionScore,
     submitDilemma,
     resetGame,
   };
